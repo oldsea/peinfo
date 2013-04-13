@@ -170,4 +170,48 @@ void CpeinfoDlg::OnBnClickedOpenfile()
 
 	CWnd* CtrlFileName = GetDlgItem(IDC_EDIT_FILENAME);
 	CtrlFileName->SetWindowText(szFileName);
+
+	//打开并建立map文件
+	HANDLE hFile = CreateFile(szFileName, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_ARCHIVE, NULL);
+	if(hFile != INVALID_HANDLE_VALUE)
+	{
+		DWORD dwFileSize = GetFileSize(hFile, NULL);
+		if (dwFileSize)
+		{
+			HANDLE hMapFile = CreateFileMapping(hFile,NULL, PAGE_READONLY, 0, 0, NULL);
+			LPVOID lpMemory = MapViewOfFile(hMapFile, FILE_MAP_READ, 0, 0, 0);
+			//检测PE文件是否有效
+			if (lpMemory)
+			{
+				IMAGE_DOS_HEADER* pDosHead;
+				pDosHead = (IMAGE_DOS_HEADER*) lpMemory;
+				if (pDosHead->e_magic != IMAGE_DOS_SIGNATURE)
+				{
+					MessageBox(L"not dos head!");
+					goto PROC_ERROR_PE_FILE;
+					//return;
+				}
+				IMAGE_NT_HEADERS* pNtHead;
+				pNtHead =(IMAGE_NT_HEADERS*)(pDosHead + pDosHead->e_lfanew);
+				if (pNtHead->Signature != IMAGE_NT_SIGNATURE)
+				{
+					MessageBox(L"not NT HEAD!");
+					goto PROC_ERROR_PE_FILE;
+					//return;
+				}
+				ProcessPeFile(lpMemory, pNtHead, dwFileSize);
+			PROC_ERROR_PE_FILE:
+				UnmapViewOfFile(lpMemory);
+			}
+			CloseHandle(hMapFile);
+		}
+		CloseHandle(hFile);
+	}
+}
+
+void CpeinfoDlg::ProcessPeFile(LPVOID lpMemory, IMAGE_NT_HEADERS* pNtHead, DWORD dwFileSize)
+{
+	CString strPeContent;
+	//std::string strPeContent;
+
 }

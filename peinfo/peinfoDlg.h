@@ -31,4 +31,6 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnBnClickedOpenfile();
+public:
+	void ProcessPeFile(LPVOID lpMemory, IMAGE_NT_HEADERS* pNtHead, DWORD dwFileSize);
 };
