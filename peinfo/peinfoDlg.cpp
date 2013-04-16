@@ -185,14 +185,14 @@ void CpeinfoDlg::OnBnClickedOpenfile()
 			{
 				IMAGE_DOS_HEADER* pDosHead;
 				pDosHead = (IMAGE_DOS_HEADER*) lpMemory;
-				if (pDosHead->e_magic != IMAGE_DOS_SIGNATURE)
+				if ((unsigned short)(pDosHead->e_magic) != IMAGE_DOS_SIGNATURE)
 				{
 					MessageBox(L"not dos head!");
 					goto PROC_ERROR_PE_FILE;
 					//return;
 				}
 				IMAGE_NT_HEADERS* pNtHead;
-				pNtHead =(IMAGE_NT_HEADERS*)(pDosHead + pDosHead->e_lfanew);
+				pNtHead =(IMAGE_NT_HEADERS*)((DWORD)pDosHead + (DWORD)pDosHead->e_lfanew);
 				if (pNtHead->Signature != IMAGE_NT_SIGNATURE)
 				{
 					MessageBox(L"not NT HEAD!");
@@ -211,7 +211,52 @@ void CpeinfoDlg::OnBnClickedOpenfile()
 
 void CpeinfoDlg::ProcessPeFile(LPVOID lpMemory, IMAGE_NT_HEADERS* pNtHead, DWORD dwFileSize)
 {
+	CString csFileName;
+	CWnd* CtrlFileName = GetDlgItem(IDC_EDIT_FILENAME);
+	CtrlFileName->GetWindowText(csFileName);
+	WORD wMachine = pNtHead->FileHeader.Machine;
+	WORD wNumSections = pNtHead->FileHeader.NumberOfSections;
+	WORD wCharact = pNtHead->FileHeader.Characteristics;
+
+	WCHAR cbHeadInfo[1024];
+	wsprintf(cbHeadInfo,L"文件名：%s\r\n-----------------------------------------------------------------\r\n\
+		                 \r\n运行平台：       0x%04x\r\n节区数量：       %d\r\n文件标记：       0x%04x\r\n建议装入地址：      0x%08x\r\n",
+						csFileName, wMachine, wNumSections, wCharact, pNtHead->OptionalHeader.ImageBase);
+	
+	CWnd* CtrlFileInfo = GetDlgItem(IDC_EDIT_PEINFO);
+	CtrlFileInfo->SetWindowText(cbHeadInfo);
+	
+	CString strSectorHeaderText = L"节区名称 节区大小  虚拟地址  RAW_尺寸  RAW_偏移  节区属性\r\n";
+
+	IMAGE_SECTION_HEADER* pSectorHeader = (IMAGE_SECTION_HEADER*)((DWORD)pNtHead+sizeof(IMAGE_NT_HEADERS));
+	CHAR szSectionName[16];
+	CHAR szSectionInfo[100];
+	CString str;
+	for (int i=0; i<wNumSections; i++)
+	{
+		memset(szSectionName, 0, 16);
+		memset(szSectionInfo, 0, 100);
+		char* pch = (char*)pSectorHeader;
+		int j =0;
+		for (j=0; j<8; j++)
+		{
+			if (*(char*)(pch+j) != '\0')
+			{
+				szSectionName[j] = *(char*)(pch+j);
+			}
+		}
+		szSectionName[j] = '\0';
+		wsprintfA(szSectionInfo,"%s  %08x  %08x  %08x  %08x  %08x\r\n", szSectionName, pSectorHeader->Misc.VirtualSize, pSectorHeader->VirtualAddress, pSectorHeader->SizeOfRawData, pSectorHeader->PointerToRawData,pSectorHeader->Characteristics);
+		str+=szSectionInfo;
+		pSectorHeader = (IMAGE_SECTION_HEADER*)((DWORD)pSectorHeader + sizeof(IMAGE_SECTION_HEADER));
+	}
+
 	CString strPeContent;
+	strPeContent.Append(cbHeadInfo);
+	strPeContent.Append(strSectorHeaderText);
+	strPeContent.Append(str);
+	CtrlFileInfo->SetWindowText(strPeContent);
+
 	//std::string strPeContent;
 
 }
